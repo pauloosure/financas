@@ -251,6 +251,9 @@
 
     <!-- Lógica JavaScript -->
     <script>
+        // URL da API do Apps Script
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxuYr2Wd4YHlYNVN6f9TusyxLwfY0KI7CjvAjMK_K5atPZIUK1ttCaOQGtEiT-TYTDV/exec";
+
         let modoAuth = 'login';
         let usuarioAtual = localStorage.getItem('usuario_financas') || null;
         let todasTransacoes = [];
@@ -317,7 +320,7 @@
             }
         }
 
-        formAuth.addEventListener('submit', function(e) {
+        formAuth.addEventListener('submit', async function(e) {
             e.preventDefault();
             const email = emailInput.value.trim().toLowerCase();
             const senha = senhaInput.value.trim();
@@ -327,44 +330,34 @@
             btnAuth.innerText = modoAuth === 'login' ? 'Entrando...' : 'Cadastrando...';
             authMensagem.innerText = '';
 
-            if (modoAuth === 'login') {
-                google.script.run
-                    .withSuccessHandler(res => {
-                        btnAuth.disabled = false;
-                        btnAuth.innerText = 'Acessar Sistema';
-                        if (res.result === 'success') {
-                            usuarioAtual = email;
-                            localStorage.setItem('usuario_financas', usuarioAtual);
-                            mostrarApp();
-                        } else {
-                            authMensagem.innerText = res.message;
-                        }
-                    })
-                    .withFailureHandler(() => {
-                        btnAuth.disabled = false;
-                        btnAuth.innerText = 'Acessar Sistema';
-                        authMensagem.innerText = 'Erro ao conectar.';
-                    })
-                    .fazerLogin(email, senha);
-            } else {
-                google.script.run
-                    .withSuccessHandler(res => {
-                        btnAuth.disabled = false;
-                        btnAuth.innerText = 'Cadastrar Conta';
-                        if (res.result === 'success') {
-                            alert('Conta criada com sucesso! Faça seu login.');
-                            alternarAbaAuth('login');
-                            senhaInput.value = '';
-                        } else {
-                            authMensagem.innerText = res.message;
-                        }
-                    })
-                    .withFailureHandler(() => {
-                        btnAuth.disabled = false;
-                        btnAuth.innerText = 'Cadastrar Conta';
-                        authMensagem.innerText = 'Erro ao conectar.';
-                    })
-                    .criarConta(email, senha);
+            try {
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: modoAuth, email, senha })
+                });
+                const res = await response.json();
+
+                btnAuth.disabled = false;
+                btnAuth.innerText = modoAuth === 'login' ? 'Acessar Sistema' : 'Cadastrar Conta';
+
+                if (res.result === 'success') {
+                    if (modoAuth === 'registro') {
+                        alert('Conta criada com sucesso! Faça seu login.');
+                        alternarAbaAuth('login');
+                        senhaInput.value = '';
+                    } else {
+                        usuarioAtual = email;
+                        localStorage.setItem('usuario_financas', usuarioAtual);
+                        mostrarApp();
+                    }
+                } else {
+                    authMensagem.innerText = res.message || 'Erro na autenticação.';
+                }
+            } catch (err) {
+                btnAuth.disabled = false;
+                btnAuth.innerText = modoAuth === 'login' ? 'Acessar Sistema' : 'Cadastrar Conta';
+                authMensagem.innerText = 'Erro ao conectar com o servidor.';
             }
         });
 
@@ -384,30 +377,34 @@
             senhaInput.value = '';
         }
 
-        function carregarDados() {
-            google.script.run
-                .withSuccessHandler(res => {
-                    if (res.result === 'success') {
-                        const dadosUsuario = res.dados.filter(item => !item.email || item.email === usuarioAtual);
+        async function carregarDados() {
+            try {
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'getData' })
+                });
+                const res = await response.json();
 
-                        todasTransacoes = dadosUsuario.map(item => ({
-                            rowIndex: item.rowIndex,
-                            data: item.data,
-                            descricao: item.descricao,
-                            valor: parseFloat(item.valor) || 0,
-                            origem: item.origem,
-                            tipo: item.tipo,
-                            tipoMovimento: item.tipoMovimento || 'Gasto',
-                            mesAno: item.mesAno
-                        }));
-                        
-                        popularSidebar();
-                    }
-                })
-                .withFailureHandler(err => {
-                    console.error('Erro ao carregar dados:', err);
-                })
-                .obterDados();
+                if (res.result === 'success') {
+                    const dadosUsuario = res.dados.filter(item => !item.email || item.email === usuarioAtual);
+
+                    todasTransacoes = dadosUsuario.map(item => ({
+                        rowIndex: item.rowIndex,
+                        data: item.data,
+                        descricao: item.descricao,
+                        valor: parseFloat(item.valor) || 0,
+                        origem: item.origem,
+                        tipo: item.tipo,
+                        tipoMovimento: item.tipoMovimento || 'Gasto',
+                        mesAno: item.mesAno
+                    }));
+                    
+                    popularSidebar();
+                }
+            } catch (err) {
+                console.error('Erro ao carregar dados:', err);
+            }
         }
 
         function popularSidebar() {
@@ -455,7 +452,7 @@
             atualizarInterface();
         }
 
-        form.addEventListener('submit', function(e) {
+        form.addEventListener('submit', async function(e) {
             e.preventDefault();
             const dataLancamento = dataLancamentoEl.value;
             const tipoMovimento = document.getElementById('tipoMovimento').value;
@@ -464,46 +461,54 @@
             const origem = document.getElementById('origem').value;
             const tipo = document.getElementById('tipo').value;
 
-            const transacao = { email: usuarioAtual, dataLancamento, tipoMovimento, descricao, valor, origem, tipo };
+            const transacao = { action: 'add', email: usuarioAtual, dataLancamento, tipoMovimento, descricao, valor, origem, tipo };
 
             btnSubmit.disabled = true;
             btnSubmit.innerText = 'Salvando...';
 
-            google.script.run
-                .withSuccessHandler(res => {
-                    btnSubmit.disabled = false;
-                    btnSubmit.innerText = 'Registrar Valor';
-                    if (res.result === 'success') {
-                        form.reset();
-                        dataLancamentoEl.value = new Date().toISOString().split('T')[0];
-                        carregarDados();
-                    } else {
-                        alert('Erro ao salvar transação.');
-                    }
-                })
-                .withFailureHandler(() => {
-                    btnSubmit.disabled = false;
-                    btnSubmit.innerText = 'Registrar Valor';
-                    alert('Erro de conexão ao salvar.');
-                })
-                .adicionarTransacao(transacao);
+            try {
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(transacao)
+                });
+                const res = await response.json();
+
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = 'Registrar Valor';
+
+                if (res.result === 'success') {
+                    form.reset();
+                    dataLancamentoEl.value = new Date().toISOString().split('T')[0];
+                    carregarDados();
+                } else {
+                    alert('Erro ao salvar transação.');
+                }
+            } catch (err) {
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = 'Registrar Valor';
+                alert('Erro de conexão ao salvar.');
+            }
         });
 
-        window.excluirTransacao = function(rowIndex) {
+        window.excluirTransacao = async function(rowIndex) {
             if (!confirm('Deseja excluir este lançamento?')) return;
             
-            google.script.run
-                .withSuccessHandler(res => {
-                    if (res.result === 'success') {
-                        carregarDados();
-                    } else {
-                        alert('Erro ao excluir.');
-                    }
-                })
-                .withFailureHandler(() => {
-                    alert('Erro de conexão ao excluir.');
-                })
-                .excluirTransacaoPorIndex(rowIndex);
+            try {
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'delete', rowIndex: rowIndex })
+                });
+                const res = await response.json();
+                if (res.result === 'success') {
+                    carregarDados();
+                } else {
+                    alert('Erro ao excluir.');
+                }
+            } catch (err) {
+                alert('Erro de conexão ao excluir.');
+            }
         }
 
         function calcularTotaisMes(mesStr) {
@@ -624,7 +629,6 @@
             atualizarGraficosMensais(atual.saldo > 0 ? atual.saldo : 0, atual.gasto, atual.investimento, atual.tipos);
         }
 
-        // Renderiza somente o percentual com emojis ⬆️ / ⬇️ e cores dinâmicas
         function renderizarBadgeComparativo(elementId, valorAtual, valorAnterior, tipo) {
             const el = document.getElementById(elementId);
             if (valorAnterior === 0) {
@@ -638,14 +642,12 @@
             el.innerText = `${emoji} ${sinal}${diff.toFixed(1)}%`;
             
             if (tipo === 'gasto') {
-                // Para gastos: diminuir (negativo) é BOM (Verde), aumentar (positivo) é RUIM (Vermelho)
                 if (diff <= 0) {
                     el.className = "text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block bg-green-100 text-green-700";
                 } else {
                     el.className = "text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block bg-red-100 text-red-700";
                 }
             } else {
-                // Para entradas, investimentos e saldo: aumentar (positivo) é BOM (Verde), diminuir é RUIM (Vermelho)
                 if (diff >= 0) {
                     el.className = "text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block bg-green-100 text-green-700";
                 } else {
