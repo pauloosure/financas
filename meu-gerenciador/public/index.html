@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Finanças</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 font-sans leading-normal tracking-normal">
+
+    <!-- TELA DE AUTENTICAÇÃO -->
+    <div id="tela-login" class="flex items-center justify-center h-screen bg-slate-900">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md text-center">
+            <div class="mb-4">
+                <div class="bg-indigo-100 text-indigo-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl mb-3 shadow-inner">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800">Minhas Finanças</h1>
+                <p class="text-sm text-gray-500">Controle financeiro pessoal e individual</p>
+            </div>
+
+            <div class="flex border-b border-gray-200 mb-6">
+                <button id="tab-login" onclick="alternarAbaAuth('login')" class="flex-1 pb-2 font-semibold text-indigo-600 border-b-2 border-indigo-600 transition">Entrar</button>
+                <button id="tab-registro" onclick="alternarAbaAuth('registro')" class="flex-1 pb-2 font-semibold text-gray-400 hover:text-gray-600 transition">Criar Conta</button>
+            </div>
+
+            <form id="form-auth" class="space-y-4 text-left">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+                    <input type="email" id="auth-email" required class="w-full rounded-md border-gray-300 shadow-sm p-3 border focus:ring-indigo-500 focus:border-indigo-500 text-sm" placeholder="seu-email@gmail.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Senha</label>
+                    <input type="password" id="auth-senha" required class="w-full rounded-md border-gray-300 shadow-sm p-3 border focus:ring-indigo-500 focus:border-indigo-500 text-sm" placeholder="••••••••">
+                </div>
+                <div id="auth-mensagem" class="text-xs text-red-500 text-center font-medium"></div>
+                <button type="submit" id="btn-auth" class="w-full bg-indigo-600 text-white py-3 rounded-md hover:bg-indigo-700 transition font-semibold shadow-md">
+                    Acessar Sistema
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- APLICAÇÃO PRINCIPAL -->
+    <div id="app-principal" class="hidden flex h-screen overflow-hidden">
+        
+        <!-- BARRA LATERAL -->
+        <aside class="w-64 bg-slate-800 text-white flex flex-col shadow-lg">
+            <div class="p-5 border-b border-slate-700">
+                <h2 class="text-lg font-bold tracking-wide"><i class="fa-solid fa-wallet mr-2"></i>Finanças</h2>
+                <p id="usuario-logado-label" class="text-xs text-indigo-300 mt-1 truncate"></p>
+            </div>
+
+            <div class="p-4 border-b border-slate-700 space-y-2">
+                <button onclick="selecionarVisaoRegistro()" id="btn-menu-registro" class="w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center bg-slate-700 text-white shadow">
+                    <i class="fa-solid fa-plus-circle mr-2"></i> Novo Lançamento
+                </button>
+                <button onclick="selecionarVisaoAnual()" id="btn-menu-anual" class="w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center text-slate-300 hover:bg-slate-700 hover:text-white">
+                    <i class="fa-solid fa-chart-line mr-2"></i> Visão Anual
+                </button>
+            </div>
+
+            <div class="px-4 pt-3 pb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">Histórico de Meses</div>
+            <div id="lista-meses" class="flex-1 overflow-y-auto px-4 pb-4 space-y-1.5"></div>
+
+            <div class="p-4 border-t border-slate-700">
+                <button onclick="fazerLogout()" class="w-full bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white py-2 rounded-md text-xs font-semibold transition">
+                    <i class="fa-solid fa-right-from-bracket mr-1"></i> Sair / Trocar Conta
+                </button>
+            </div>
+        </aside>
+
+        <!-- CONTEÚDO PRINCIPAL -->
+        <main class="flex-1 overflow-y-auto p-6">
+            <div class="max-w-5xl mx-auto">
+                <header class="flex justify-between items-center my-6 bg-white p-4 rounded-lg shadow-sm">
+                    <div>
+                        <h1 id="titulo-painel" class="text-2xl font-bold text-gray-800">Novo Lançamento</h1>
+                        <p class="text-sm text-gray-600">Período de referência: <span id="periodo-selecionado-titulo" class="font-semibold text-indigo-600">Mês Vigente</span></p>
+                    </div>
+                    <button onclick="carregarDados()" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-2 rounded-md text-sm font-medium transition">
+                        <i class="fa-solid fa-rotate mr-1"></i> Atualizar Dados
+                    </button>
+                </header>
+
+                <!-- PAINEL DE REGISTRO -->
+                <div id="painel-registro" class="space-y-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white p-4 rounded-lg shadow-md border-l-4 border-red-500 relative">
+                            <p class="text-sm text-gray-500">Total Gasto (Mês Vigente)</p>
+                            <p id="reg-total-gasto" class="text-2xl font-bold text-red-600">R$ 0,00</p>
+                            <span id="reg-badge-gasto" class="text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block">--</span>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-md border-l-4 border-green-500 relative">
+                            <p class="text-sm text-gray-500">Valor de Entrada</p>
+                            <p id="reg-total-entrada" class="text-2xl font-bold text-green-600">R$ 0,00</p>
+                            <span id="reg-badge-entrada" class="text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block">--</span>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-md border-l-4 border-purple-500 relative">
+                            <p class="text-sm text-gray-500">Valor Investido</p>
+                            <p id="reg-total-investimento" class="text-2xl font-bold text-purple-600">R$ 0,00</p>
+                            <span id="reg-badge-investimento" class="text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block">--</span>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-md border-l-4 border-blue-500 relative">
+                            <p class="text-sm text-gray-500">Saldo Disponível</p>
+                            <p id="reg-saldo-disponivel" class="text-2xl font-bold text-blue-600">R$ 0,00</p>
+                            <span id="reg-badge-saldo" class="text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block">--</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-8 rounded-lg shadow-md max-w-xl mx-auto">
+                        <h2 class="text-xl font-semibold mb-6 text-gray-700 text-center"><i class="fa-solid fa-circle-plus text-indigo-600 mr-2"></i>Cadastrar Nova Transação</h2>
+                        <form id="transacao-form" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Data do Lançamento</label>
+                                <input type="date" id="dataLancamento" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 border focus:ring-indigo-500 focus:border-indigo-500 font-semibold">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Tipo de Lançamento</label>
+                                <select id="tipoMovimento" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 border focus:ring-indigo-500 focus:border-indigo-500 font-semibold">
+                                    <option value="Gasto">🔴 Gasto (Despesa)</option>
+                                    <option value="Entrada">🟢 Entrada (Receita)</option>
+                                    <option value="Investimento">🟣 Investimento</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Descrição</label>
+                                <input type="text" id="descricao" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 border focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ex: Salário, Supermercado">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Valor (R$)</label>
+                                <input type="number" step="0.01" id="valor" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 border focus:ring-indigo-500 focus:border-indigo-500" placeholder="0.00">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Origem / Conta</label>
+                                <select id="origem" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 border focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="Pix">Pix</option>
+                                    <option value="Débito">Débito</option>
+                                    <option value="Crédito">Crédito</option>
+                                    <option value="Conta Corrente">Conta Corrente</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Categoria (Tipo)</label>
+                                <select id="tipo" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 border focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="Alimentação">Alimentação</option>
+                                    <option value="Transporte">Transporte</option>
+                                    <option value="Lazer">Lazer</option>
+                                    <option value="Contas/Fixas">Contas / Fixas</option>
+                                    <option value="Salário/Renda">Salário / Renda</option>
+                                    <option value="Aplicações">Aplicações</option>
+                                    <option value="Outros">Outros</option>
+                                </select>
+                            </div>
+                            <button type="submit" id="btn-submit" class="w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700 transition font-semibold shadow-md">Registrar Valor</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- PAINEL MENSAL -->
+                <div id="painel-mensal" class="hidden space-y-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white p-4 rounded-lg shadow-md border-l-4 border-red-500 relative">
+                            <p class="text-sm text-gray-500">Total Gasto</p>
+                            <p id="total-gasto" class="text-2xl font-bold text-red-600">R$ 0,00</p>
+                            <span id="badge-gasto" class="text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block">--</span>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-md border-l-4 border-green-500 relative">
+                            <p class="text-sm text-gray-500">Valor de Entrada</p>
+                            <p id="total-entrada" class="text-2xl font-bold text-green-600">R$ 0,00</p>
+                            <span id="badge-entrada" class="text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block">--</span>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-md border-l-4 border-purple-500 relative">
+                            <p class="text-sm text-gray-500">Valor Investido</p>
+                            <p id="total-investimento" class="text-2xl font-bold text-purple-600">R$ 0,00</p>
+                            <span id="badge-investimento" class="text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block">--</span>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-md border-l-4 border-blue-500 relative">
+                            <p class="text-sm text-gray-500">Saldo Disponível</p>
+                            <p id="saldo-disponivel" class="text-2xl font-bold text-blue-600">R$ 0,00</p>
+                            <span id="badge-saldo" class="text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block">--</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-lg shadow-md grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                            <h3 class="text-md font-semibold text-center text-gray-700 mb-2">Proporção do Mês</h3>
+                            <canvas id="graficoProporcao"></canvas>
+                        </div>
+                        <div>
+                            <h3 class="text-md font-semibold text-center text-gray-700 mb-2">Gastos por Categoria</h3>
+                            <canvas id="graficoTipo"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h2 class="text-xl font-semibold mb-4 text-gray-700">Lançamentos do Mês</h2>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead>
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Origem</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
+                                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabela-corpo" class="bg-white divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAINEL ANUAL -->
+                <div id="painel-anual" class="hidden space-y-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="bg-white p-5 rounded-lg shadow-md border-l-4 border-green-500">
+                            <p class="text-sm text-gray-500">Total Entradas no Ano</p>
+                            <p id="anual-entrada" class="text-3xl font-bold text-green-600">R$ 0,00</p>
+                        </div>
+                        <div class="bg-white p-5 rounded-lg shadow-md border-l-4 border-red-500">
+                            <p class="text-sm text-gray-500">Total Gastos no Ano</p>
+                            <p id="anual-gasto" class="text-3xl font-bold text-red-600">R$ 0,00</p>
+                        </div>
+                        <div class="bg-white p-5 rounded-lg shadow-md border-l-4 border-purple-500">
+                            <p class="text-sm text-gray-500">Total Investido no Ano</p>
+                            <p id="anual-investimento" class="text-3xl font-bold text-purple-600">R$ 0,00</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4 text-center">Evolução Mensal (Entradas x Gastos x Investimentos)</h3>
+                        <div class="relative h-80">
+                            <canvas id="graficoAnual"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Script de Integração com o Proxy do Render -->
+    <script>
+        const API_URL = "/api/proxy";
+
+        let modoAuth = 'login';
+        let usuarioAtual = localStorage.getItem('usuario_financas') || null;
+        let todasTransacoes = [];
+        let visaoAtual = 'registro';
+        let mesSelecionado = null;
+        let anoSelecionado = new Date().getFullYear().toString();
+        
+        let chartProporcao = null;
+        let chartTipo = null;
+        let chartAnual = null;
+
+        const telaLogin = document.getElementById('tela-login');
+        const appPrincipal = document.getElementById('app-principal');
+        const formAuth = document.getElementById('form-auth');
+        const emailInput = document.getElementById('auth-email');
+        const senhaInput = document.getElementById('auth-senha');
+        const authMensagem = document.getElementById('auth-mensagem');
+        const btnAuth = document.getElementById('btn-auth');
+        const tabLogin = document.getElementById('tab-login');
+        const tabRegistro = document.getElementById('tab-registro');
+        const usuarioLogadoLabel = document.getElementById('usuario-logado-label');
+
+        const painelRegistro = document.getElementById('painel-registro');
+        const painelMensal = document.getElementById('painel-mensal');
+        const painelAnual = document.getElementById('painel-anual');
+        const tituloPainel = document.getElementById('titulo-painel');
+        const periodoSelecionadoTitulo = document.getElementById('periodo-selecionado-titulo');
+        const btnMenuRegistro = document.getElementById('btn-menu-registro');
+        const btnMenuAnual = document.getElementById('btn-menu-anual');
+
+        const form = document.getElementById('transacao-form');
+        const btnSubmit = document.getElementById('btn-submit');
+        const tabelaCorpo = document.getElementById('tabela-corpo');
+        const listaMesesEl = document.getElementById('lista-meses');
+        const dataLancamentoEl = document.getElementById('dataLancamento');
+        
+        const regTotalGastoEl = document.getElementById('reg-total-gasto');
+        const regTotalEntradaEl = document.getElementById('reg-total-entrada');
+        const regTotalInvestimentoEl = document.getElementById('reg-total-investimento');
+        const regSaldoDisponivelEl = document.getElementById('reg-saldo-disponivel');
+
+        const totalGastoEl = document.getElementById('total-gasto');
+        const totalEntradaEl = document.getElementById('total-entrada');
+        const totalInvestimentoEl = document.getElementById('total-investimento');
+        const saldoDisponivelEl = document.getElementById('saldo-disponivel');
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const hoje = new Date().toISOString().split('T')[0];
+            dataLancamentoEl.value = hoje;
+            if (usuarioAtual) mostrarApp();
+        });
+
+        window.alternarAbaAuth = function(modo) {
+            modoAuth = modo;
+            authMensagem.innerText = '';
+            if (modo === 'login') {
+                tabLogin.className = "flex-1 pb-2 font-semibold text-indigo-600 border-b-2 border-indigo-600 transition";
+                tabRegistro.className = "flex-1 pb-2 font-semibold text-gray-400 hover:text-gray-600 transition";
+                btnAuth.innerText = "Acessar Sistema";
+            } else {
+                tabRegistro.className = "flex-1 pb-2 font-semibold text-indigo-600 border-b-2 border-indigo-600 transition";
+                tabLogin.className = "flex-1 pb-2 font-semibold text-gray-400 hover:text-gray-600 transition";
+                btnAuth.innerText = "Cadastrar Conta";
+            }
+        }
+
+        formAuth.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const email = emailInput.value.trim().toLowerCase();
+            const senha = senhaInput.value.trim();
+            if (!email || !senha) return;
+
+            btnAuth.disabled = true;
+            btnAuth.innerText = modoAuth === 'login' ? 'Entrando...' : 'Cadastrando...';
+            authMensagem.innerText = '';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: modoAuth, email, senha })
+                });
+                const res = await response.json();
+
+                btnAuth.disabled = false;
+                btnAuth.innerText = modoAuth === 'login' ? 'Acessar Sistema' : 'Cadastrar Conta';
+
+                if (res.result === 'success') {
+                    if (modoAuth === 'registro') {
+                        alert('Conta criada com sucesso! Faça seu login.');
+                        alternarAbaAuth('login');
+                        senhaInput.value = '';
+                    } else {
+                        usuarioAtual = email;
+                        localStorage.setItem('usuario_financas', usuarioAtual);
+                        mostrarApp();
+                    }
+                } else {
+                    authMensagem.innerText = res.message || 'Erro na autenticação.';
+                }
+            } catch (err) {
+                btnAuth.disabled = false;
+                btnAuth.innerText = modoAuth === 'login' ? 'Acessar Sistema' : 'Cadastrar Conta';
+                authMensagem.innerText = 'Erro ao conectar com o servidor.';
+            }
+        });
+
+        function mostrarApp() {
+            telaLogin.classList.add('hidden');
+            appPrincipal.classList.remove('hidden');
+            usuarioLogadoLabel.innerHTML = `<i class="fa-solid fa-user-circle mr-1"></i> ${usuarioAtual}`;
+            carregarDados();
+        }
+
+        window.fazerLogout = function() {
+            localStorage.removeItem('usuario_financas');
+            usuarioAtual = null;
+            appPrincipal.classList.add('hidden');
+            telaLogin.classList.remove('hidden');
+            emailInput.value = '';
+            senhaInput.value = '';
+        }
+
+        async function carregarDados() {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'getData' })
+                });
+                const res = await response.json();
+
+                if (res.result === 'success') {
+                    const dadosUsuario = res.dados.filter(item => !item.email || item.email === usuarioAtual);
+
+                    todasTransacoes = dadosUsuario.map(item => ({
+                        rowIndex: item.rowIndex,
+                        data: item.data,
+                        descricao: item.descricao,
+                        valor: parseFloat(item.valor) || 0,
+                        origem: item.origem,
+                        tipo: item.tipo,
+                        tipoMovimento: item.tipoMovimento || 'Gasto',
+                        mesAno: item.mesAno
+                    }));
+                    
+                    popularSidebar();
+                }
+            } catch (err) {
+                console.error('Erro ao carregar dados:', err);
+            }
+        }
+
+        function popularSidebar() {
+            listaMesesEl.innerHTML = '';
+            
+            const mesesSet = [...new Set(todasTransacoes.map(t => t.mesAno).filter(m => m && m.length === 7))].sort().reverse();
+            const mesAtual = new Date().toISOString().slice(0, 7);
+            if (mesesSet.length === 0 || !mesesSet.includes(mesAtual)) {
+                if (!mesesSet.includes(mesAtual)) mesesSet.push(mesAtual);
+                mesesSet.sort().reverse();
+            }
+
+            if (!mesSelecionado) {
+                mesSelecionado = mesAtual;
+            }
+
+            mesesSet.forEach(m => {
+                const [ano, mes] = m.split('-');
+                const nomeMesFormatado = new Date(ano, mes - 1, 1).toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+                
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center justify-between ${visaoAtual === 'mensal' && m === mesSelecionado ? 'bg-indigo-600 text-white shadow' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`;
+                btn.innerHTML = `<span><i class="fa-regular fa-calendar mr-2"></i>${nomeMesFormatado.charAt(0).toUpperCase() + nomeMesFormatado.slice(1)}</span>`;
+                btn.onclick = () => {
+                    visaoAtual = 'mensal';
+                    mesSelecionado = m;
+                    popularSidebar();
+                    atualizarInterface();
+                };
+                listaMesesEl.appendChild(btn);
+            });
+
+            atualizarInterface();
+        }
+
+        window.selecionarVisaoRegistro = function() {
+            visaoAtual = 'registro';
+            popularSidebar();
+            atualizarInterface();
+        }
+
+        window.selecionarVisaoAnual = function() {
+            visaoAtual = 'anual';
+            popularSidebar();
+            atualizarInterface();
+        }
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const dataLancamento = dataLancamentoEl.value;
+            const tipoMovimento = document.getElementById('tipoMovimento').value;
+            const descricao = document.getElementById('descricao').value;
+            const valor = parseFloat(document.getElementById('valor').value);
+            const origem = document.getElementById('origem').value;
+            const tipo = document.getElementById('tipo').value;
+
+            const transacao = { action: 'add', email: usuarioAtual, dataLancamento, tipoMovimento, descricao, valor, origem, tipo };
+
+            btnSubmit.disabled = true;
+            btnSubmit.innerText = 'Salvando...';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(transacao)
+                });
+                const res = await response.json();
+
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = 'Registrar Valor';
+
+                if (res.result === 'success') {
+                    form.reset();
+                    dataLancamentoEl.value = new Date().toISOString().split('T')[0];
+                    carregarDados();
+                } else {
+                    alert('Erro ao salvar transação.');
+                }
+            } catch (err) {
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = 'Registrar Valor';
+                alert('Erro de conexão ao salvar.');
+            }
+        });
+
+        window.excluirTransacao = async function(rowIndex) {
+            if (!confirm('Deseja excluir este lançamento?')) return;
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'delete', rowIndex: rowIndex })
+                });
+                const res = await response.json();
+                if (res.result === 'success') {
+                    carregarDados();
+                } else {
+                    alert('Erro ao excluir.');
+                }
+            } catch (err) {
+                alert('Erro de conexão ao excluir.');
+            }
+        }
+
+        function calcularTotaisMes(mesStr) {
+            const transMes = todasTransacoes.filter(t => t.mesAno === mesStr);
+            let g = 0, e = 0, i = 0;
+            let tipos = {};
+            transMes.forEach(t => {
+                if (t.tipoMovimento === 'Entrada') e += t.valor;
+                else if (t.tipoMovimento === 'Investimento') i += t.valor;
+                else {
+                    g += t.valor;
+                    tipos[t.tipo] = (tipos[t.tipo] || 0) + t.valor;
+                }
+            });
+            return { gasto: g, entrada: e, investimento: i, saldo: e - g - i, tipos };
+        }
+
+        function obterMesAnterior(mesStr) {
+            const [ano, mes] = mesStr.split('-').map(Number);
+            let d = new Date(ano, mes - 2, 1);
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        }
+
+        function atualizarInterface() {
+            btnMenuRegistro.className = "w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center " + (visaoAtual === 'registro' ? "bg-indigo-600 text-white shadow" : "text-slate-300 hover:bg-slate-700 hover:text-white");
+            btnMenuAnual.className = "w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center " + (visaoAtual === 'anual' ? "bg-indigo-600 text-white shadow" : "text-slate-300 hover:bg-slate-700 hover:text-white");
+
+            if (visaoAtual === 'registro') {
+                painelRegistro.classList.remove('hidden');
+                painelMensal.classList.add('hidden');
+                painelAnual.classList.add('hidden');
+                
+                tituloPainel.innerText = "Novo Lançamento";
+                periodoSelecionadoTitulo.innerText = "Mês Vigente";
+                
+                atualizarPainelRegistro();
+            } else if (visaoAtual === 'anual') {
+                painelRegistro.classList.add('hidden');
+                painelMensal.classList.add('hidden');
+                painelAnual.classList.remove('hidden');
+                
+                tituloPainel.innerText = "Visão Anual Consolidada";
+                periodoSelecionadoTitulo.innerText = `Ano ${anoSelecionado}`;
+                
+                atualizarPainelAnual();
+            } else {
+                painelRegistro.classList.add('hidden');
+                painelMensal.classList.remove('hidden');
+                painelAnual.classList.add('hidden');
+                
+                const [anoSel, mesSel] = mesSelecionado.split('-');
+                const nomeMesTitulo = new Date(anoSel, mesSel - 1, 1).toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+                tituloPainel.innerText = "Painel Financeiro Mensal";
+                periodoSelecionadoTitulo.innerText = nomeMesTitulo.charAt(0).toUpperCase() + nomeMesTitulo.slice(1);
+                
+                atualizarPainelMensal();
+            }
+        }
+
+        function atualizarPainelRegistro() {
+            const mesAtualChave = new Date().toISOString().slice(0, 7);
+            const atual = calcularTotaisMes(mesAtualChave);
+            const mesAntChave = obterMesAnterior(mesAtualChave);
+            const anterior = calcularTotaisMes(mesAntChave);
+
+            regTotalGastoEl.innerText = `R$ ${atual.gasto.toFixed(2)}`;
+            regTotalEntradaEl.innerText = `R$ ${atual.entrada.toFixed(2)}`;
+            regTotalInvestimentoEl.innerText = `R$ ${atual.investimento.toFixed(2)}`;
+            regSaldoDisponivelEl.innerText = `R$ ${atual.saldo.toFixed(2)}`;
+            regSaldoDisponivelEl.className = atual.saldo < 0 ? "text-2xl font-bold text-red-600" : "text-2xl font-bold text-blue-600";
+
+            renderizarBadgeComparativo('reg-badge-gasto', atual.gasto, anterior.gasto, 'gasto');
+            renderizarBadgeComparativo('reg-badge-entrada', atual.entrada, anterior.entrada, 'entrada');
+            renderizarBadgeComparativo('reg-badge-investimento', atual.investimento, anterior.investimento, 'investimento');
+            renderizarBadgeComparativo('reg-badge-saldo', atual.saldo, anterior.saldo, 'saldo');
+        }
+
+        function atualizarPainelMensal() {
+            tabelaCorpo.innerHTML = '';
+            const transacoesMes = todasTransacoes.filter(t => t.mesAno === mesSelecionado);
+            const atual = calcularTotaisMes(mesSelecionado);
+            const mesAntChave = obterMesAnterior(mesSelecionado);
+            const anterior = calcularTotaisMes(mesAntChave);
+
+            totalGastoEl.innerText = `R$ ${atual.gasto.toFixed(2)}`;
+            totalEntradaEl.innerText = `R$ ${atual.entrada.toFixed(2)}`;
+            totalInvestimentoEl.innerText = `R$ ${atual.investimento.toFixed(2)}`;
+            saldoDisponivelEl.innerText = `R$ ${atual.saldo.toFixed(2)}`;
+            saldoDisponivelEl.className = atual.saldo < 0 ? "text-2xl font-bold text-red-600" : "text-2xl font-bold text-blue-600";
+
+            renderizarBadgeComparativo('badge-gasto', atual.gasto, anterior.gasto, 'gasto');
+            renderizarBadgeComparativo('badge-entrada', atual.entrada, anterior.entrada, 'entrada');
+            renderizarBadgeComparativo('badge-investimento', atual.investimento, anterior.investimento, 'investimento');
+            renderizarBadgeComparativo('badge-saldo', atual.saldo, anterior.saldo, 'saldo');
+
+            transacoesMes.forEach(t => {
+                let badgeColor = 'bg-red-100 text-red-800';
+                if (t.tipoMovimento === 'Entrada') badgeColor = 'bg-green-100 text-green-800';
+                if (t.tipoMovimento === 'Investimento') badgeColor = 'bg-purple-100 text-purple-800';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500">${t.data}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeColor}">${t.tipoMovimento}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${t.descricao}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">R$ ${t.valor.toFixed(2)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${t.origem}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${t.tipo}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <button onclick="excluirTransacao(${t.rowIndex})" class="text-red-600 hover:text-red-900 transition" title="Excluir">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                tabelaCorpo.appendChild(tr);
+            });
+
+            atualizarGraficosMensais(atual.saldo > 0 ? atual.saldo : 0, atual.gasto, atual.investimento, atual.tipos);
+        }
+
+        function renderizarBadgeComparativo(elementId, valorAtual, valorAnterior, tipo) {
+            const el = document.getElementById(elementId);
+            if (valorAnterior === 0) {
+                el.innerText = "Sem dados ant.";
+                el.className = "text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block bg-gray-100 text-gray-600";
+                return;
+            }
+            const diff = ((valorAtual - valorAnterior) / valorAnterior) * 100;
+            const sinal = diff >= 0 ? '+' : '';
+            const emoji = diff >= 0 ? '⬆️' : '⬇️';
+            el.innerText = `${emoji} ${sinal}${diff.toFixed(1)}%`;
+            
+            if (tipo === 'gasto') {
+                if (diff <= 0) {
+                    el.className = "text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block bg-green-100 text-green-700";
+                } else {
+                    el.className = "text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block bg-red-100 text-red-700";
+                }
+            } else {
+                if (diff >= 0) {
+                    el.className = "text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block bg-green-100 text-green-700";
+                } else {
+                    el.className = "text-xs font-bold px-2.5 py-1 rounded-md mt-2 inline-block bg-red-100 text-red-700";
+                }
+            }
+        }
+
+        function atualizarGraficosMensais(saldo, gasto, investimento, tipos) {
+            const ctxProporcao = document.getElementById('graficoProporcao').getContext('2d');
+            if (chartProporcao) chartProporcao.destroy();
+            chartProporcao = new Chart(ctxProporcao, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Saldo Disponível', 'Despesas (Gasto)', 'Investimento'],
+                    datasets: [{ data: [saldo, gasto, investimento], backgroundColor: ['#3B82F6', '#EF4444', '#8B5CF6'] }]
+                }
+            });
+
+            const ctxTipo = document.getElementById('graficoTipo').getContext('2d');
+            if (chartTipo) chartTipo.destroy();
+            chartTipo = new Chart(ctxTipo, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(tipos),
+                    datasets: [{ label: 'Gastos por Categoria (R$)', data: Object.values(tipos), backgroundColor: '#EF4444' }]
+                },
+                options: { scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        function atualizarPainelAnual() {
+            let totalEntradaAno = 0;
+            let totalGastoAno = 0;
+            let totalInvestimentoAno = 0;
+
+            const mesesDoAno = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+            const arrayEntradas = [];
+            const arrayGastos = [];
+            const arrayInvestimentos = [];
+
+            mesesDoAno.forEach(m => {
+                const chave = `${anoSelecionado}-${m}`;
+                const tot = calcularTotaisMes(chave);
+                totalEntradaAno += tot.entrada;
+                totalGastoAno += tot.gasto;
+                totalInvestimentoAno += tot.investimento;
+
+                arrayEntradas.push(tot.entrada);
+                arrayGastos.push(tot.gasto);
+                arrayInvestimentos.push(tot.investimento);
+            });
+
+            document.getElementById('anual-entrada').innerText = `R$ ${totalEntradaAno.toFixed(2)}`;
+            document.getElementById('anual-gasto').innerText = `R$ ${totalGastoAno.toFixed(2)}`;
+            document.getElementById('anual-investimento').innerText = `R$ ${totalInvestimentoInvestimento = totalInvestimentoAno.toFixed(2)}`;
+
+            const ctxAnual = document.getElementById('graficoAnual').getContext('2d');
+            if (chartAnual) chartAnual.destroy();
+            chartAnual = new Chart(ctxAnual, {
+                type: 'bar',
+                data: {
+                    labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+                    datasets: [
+                        { label: 'Entradas', data: arrayEntradas, backgroundColor: '#10B981' },
+                        { label: 'Gastos', data: arrayGastos, backgroundColor: '#EF4444' },
+                        { label: 'Investimentos', data: arrayInvestimentos, backgroundColor: '#8B5CF6' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
